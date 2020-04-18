@@ -10,20 +10,22 @@ def getTemplate(img):
 
 	return gray,bbox
 
-def getWarp(img,tmp,P,gradx,grady):
+def getWarp(img,tmp,P,rect,gradx,grady):
 	warp_im = np.zeros_like(tmp)
 	warp_gradx = np.zeros_like(tmp)
 	warp_grady = np.zeros_like(tmp)
 	#print(1+P[0][0])
 	Pm = np.array([[1+P[0][0],P[2][0],P[4][0]],[P[1][0],1+P[3][0],P[5][0]]])
-	for x in range(tmp.shape[1]):
-		for y in range(tmp.shape[0]):
+	for i,x in enumerate(range(rect[1],rect[3]-1,1)):
+		for j,y in enumerate(range(rect[0],rect[2]-1,1)):
 			L = np.array([x,y,1]).T.reshape((3,1))
 			W_L = np.int32(np.round(np.matmul(Pm,L)))
-			warp_im[y,x] = img[W_L[1],W_L[0]]
-			warp_gradx[y,x] = gradx[W_L[1],W_L[0]]
-			warp_grady[y,x] = grady[W_L[1],W_L[0]]
+			warp_im[j,i] = img[W_L[1],W_L[0]]
+			warp_gradx[j,i] = gradx[W_L[1],W_L[0]]
+			warp_grady[j,i] = grady[W_L[1],W_L[0]]
 
+	#cv2.imshow('Inter',warp_im)
+	#cv2.waitKey(0)
 	return warp_im,warp_gradx,warp_grady
 
 def kidharGayaBe(gray,tmp,rect,pprev):
@@ -35,29 +37,33 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 	err = 100
 	ppnorm = 10
 	#while (err>thresh):
-	for i in range(100):
-		wimg,wIx,wIy = getWarp(img,tmp,P,Ix,Iy)
+	for k in range(100):
+		wimg,wIx,wIy = getWarp(img,tmp,P,rect,Ix,Iy)
 		hess = np.zeros((6,6))
 		ergrad = np.zeros((6,1))
 		error = tmp - wimg
-		for x in range(tmp.shape[1]):
-			for y in range(tmp.shape[0]):
+		nerr = np.reshape(error,(-1,1))
+		sigma = np.std(nerr)
+		for i,x in enumerate(range(rect[1],rect[3]-1,1)):
+			for j,y in enumerate(range(rect[0],rect[2]-1,1)):
 				jacobian = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
-				mgrad = np.array([wIx[y,x],wIy[y,x]])
+				mgrad = np.array([wIx[j,i],wIy[j,i]])
 				prod1 = np.matmul(mgrad,jacobian)
 				#perror = tmp[y,x] - wimg[y,x]
-				perror = error[y,x]
+				perror = error[j,i]
 				prod1 = np.reshape(prod1,(1,6))
 				perror = np.reshape(perror,(1,1))
-				hess = hess + np.matmul(prod1.T,prod1)
-				ergrad = ergrad + np.matmul(prod1.T,perror)
+				hess = hess + prod1.T*prod1
+				ergrad = ergrad + prod1.T*perror
 
 		del_p = np.matmul(np.linalg.inv(hess),ergrad)
 		P = P + del_p
 		pnorm = np.linalg.norm(del_p)
+		err = pnorm
 		if ppnorm>pnorm:
 			P_min = P
 		ppnorm = pnorm
+		print(k,pnorm)
 
 	return P_min
 
@@ -79,6 +85,7 @@ if __name__=="__main__":
 		box1 = np.array([box[1],box[0],1]).T.reshape((3,1))
 		box4 = np.array([box[3],box[2],1]).T.reshape((3,1))
 		wbox1 = np.matmul(Pw,box1)
+		print(wbox1)
 		wbox4 = np.matmul(Pw,box4)
 		
 		IM = cv2.rectangle(IM,(wbox1[0],wbox1[1]),(wbox4[0],wbox4[1]),(255,0,0),3)
