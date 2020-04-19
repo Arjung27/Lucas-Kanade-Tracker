@@ -38,13 +38,15 @@ def getWarp(img,tmp,P,rect,gradx,grady):
 '''
 def getWarpy(img,tmp,P,rect,gradx,grady):
 	Pm = np.array([[1+P[0][0],P[2][0],P[4][0]],[P[1][0],1+P[3][0],P[5][0]]])
+	Pm = cv2.invertAffineTransform(Pm)
 	warp_img = cv2.warpAffine(img, Pm, (img.shape[1], img.shape[0]))
 	#cv2.imshow('warp',warp_img)
 	#cv2.waitKey(0)
 	warp_gradx = cv2.Sobel(warp_img,cv2.CV_64F,1,0,ksize=3)
 	warp_grady = cv2.Sobel(warp_img,cv2.CV_64F,0,1,ksize=3)
 	warp_im = getTemp(warp_img)
-
+	#cv2.imshow('warp',warp_img)
+	#cv2.waitKey(0)
 	return warp_im,warp_gradx,warp_grady
 
 
@@ -62,7 +64,7 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		wimg,wIx,wIy = getWarpy(img,tmp,P,rect,Ix,Iy)
 		hess = np.zeros((6,6))
 		ergrad = np.zeros((6,1))
-		error = tmp - wimg
+		error = wimg-tmp
 		nerr = np.reshape(error,(-1,1))
 		sigma = np.std(nerr)
 		for i,x in enumerate(range(rect[1],rect[3]-1,1)):
@@ -72,8 +74,9 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 				prod1 = np.matmul(mgrad,jacobian)
 				#perror = tmp[y,x] - wimg[y,x]
 				perror = error[j,i]
+				
 				'''
-				This section contains the Huber Loss Implementation
+				#This section contains the Huber Loss Implementation
 				'''
 				t = perror**2
 				if t<=sigma**2:
@@ -94,9 +97,10 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		count +=1
 		if count>100:
 			return P
-		print(pnorm)
+		#print(pnorm)
 
 	return P
+
 
 if __name__=="__main__":
 	#images = sorted(glob.glob('./Bolt2/img/*.jpg'))
