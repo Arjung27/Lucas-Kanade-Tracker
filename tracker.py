@@ -10,6 +10,14 @@ def getTemplate(img):
 
 	return gray,bbox
 
+def getTemp(img):
+	#bbox = [75,269,139,303]
+	bbox = [51,70,138,177]
+	T = img[bbox[0]:bbox[2],bbox[1]:bbox[3]]
+	#gray = cv2.cvtColor(T,cv2.COLOR_BGR2GRAY)
+
+	return T
+'''
 def getWarp(img,tmp,P,rect,gradx,grady):
 	warp_im = np.zeros_like(tmp)
 	warp_gradx = np.zeros_like(tmp)
@@ -19,7 +27,7 @@ def getWarp(img,tmp,P,rect,gradx,grady):
 	for i,x in enumerate(range(rect[1],rect[3]-1,1)):
 		for j,y in enumerate(range(rect[0],rect[2]-1,1)):
 			L = np.array([x,y,1]).T.reshape((3,1))
-			W_L = np.int32(np.round(np.matmul(Pm,L)))
+			W_L = np.int64(np.round(np.matmul(Pm,L)))
 			warp_im[j,i] = img[W_L[1],W_L[0]]
 			warp_gradx[j,i] = gradx[W_L[1],W_L[0]]
 			warp_grady[j,i] = grady[W_L[1],W_L[0]]
@@ -27,18 +35,30 @@ def getWarp(img,tmp,P,rect,gradx,grady):
 	#cv2.imshow('Inter',warp_im)
 	#cv2.waitKey(0)
 	return warp_im,warp_gradx,warp_grady
+'''
+def getWarpy(img,tmp,P,rect,gradx,grady):
+	Pm = np.array([[1+P[0][0],P[2][0],P[4][0]],[P[1][0],1+P[3][0],P[5][0]]])
+	warp_img = cv2.warpAffine(img, Pm, (img.shape[1], img.shape[0]))
+	#cv2.imshow('warp',warp_img)
+	#cv2.waitKey(0)
+	warp_gradx = cv2.Sobel(warp_img,cv2.CV_64F,1,0,ksize=3)
+	warp_grady = cv2.Sobel(warp_img,cv2.CV_64F,0,1,ksize=3)
+	warp_im = getTemp(warp_img)
+
+	return warp_im,warp_gradx,warp_grady
+
 
 def kidharGayaBe(gray,tmp,rect,pprev):
 	img = gray
 	P = pprev
 	Ix = cv2.Sobel(img,cv2.CV_64F,1,0,ksize=3)
 	Iy = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=3)
-	thresh = 0.4
+	thresh = 0.05
 	err = 100
 	ppnorm = 10
-	#while (err>thresh):
-	for k in range(100):
-		wimg,wIx,wIy = getWarp(img,tmp,P,rect,Ix,Iy)
+	while (err>thresh):
+	#for k in range(100):
+		wimg,wIx,wIy = getWarpy(img,tmp,P,rect,Ix,Iy)
 		hess = np.zeros((6,6))
 		ergrad = np.zeros((6,1))
 		error = tmp - wimg
@@ -47,7 +67,7 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		for i,x in enumerate(range(rect[1],rect[3]-1,1)):
 			for j,y in enumerate(range(rect[0],rect[2]-1,1)):
 				jacobian = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
-				mgrad = np.array([wIx[j,i],wIy[j,i]])
+				mgrad = np.array([wIx[y,x],wIy[y,x]])
 				prod1 = np.matmul(mgrad,jacobian)
 				#perror = tmp[y,x] - wimg[y,x]
 				perror = error[j,i]
@@ -60,12 +80,10 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		P = P + del_p
 		pnorm = np.linalg.norm(del_p)
 		err = pnorm
-		if ppnorm>pnorm:
-			P_min = P
-		ppnorm = pnorm
-		print(k,pnorm)
+		
+		print(pnorm)
 
-	return P_min
+	return P
 
 if __name__=="__main__":
 	#images = sorted(glob.glob('./Bolt2/img/*.jpg'))
