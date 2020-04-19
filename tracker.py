@@ -3,15 +3,17 @@ import cv2
 import glob
 
 def getTemplate(img):
-	#bbox = [75,269,139,303]
+	# bbox = [75,269,139,303]
 	bbox = [51,70,138,177]
-	T = img[bbox[0]:bbox[2],bbox[1]:bbox[3]]
-	gray = cv2.cvtColor(T,cv2.COLOR_BGR2GRAY)
+	gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+	img_eq = cv2.equalizeHist(gray)
+	template = img_eq[bbox[0]:bbox[2],bbox[1]:bbox[3]]
+	
 
-	return gray,bbox
+	return template, bbox
 
 def getTemp(img):
-	#bbox = [75,269,139,303]
+	# bbox = [75,269,139,303]
 	bbox = [51,70,138,177]
 	T = img[bbox[0]:bbox[2],bbox[1]:bbox[3]]
 	#gray = cv2.cvtColor(T,cv2.COLOR_BGR2GRAY)
@@ -40,8 +42,8 @@ def getWarpy(img,tmp,P,rect,gradx,grady):
 	Pm = np.array([[1+P[0][0],P[2][0],P[4][0]],[P[1][0],1+P[3][0],P[5][0]]])
 	Pm = cv2.invertAffineTransform(Pm)
 	warp_img = cv2.warpAffine(img, Pm, (img.shape[1], img.shape[0]))
-	#cv2.imshow('warp',warp_img)
-	#cv2.waitKey(0)
+	# cv2.imshow('warp',warp_img)
+	# cv2.waitKey(0)
 	warp_gradx = cv2.Sobel(warp_img,cv2.CV_64F,1,0,ksize=3)
 	warp_grady = cv2.Sobel(warp_img,cv2.CV_64F,0,1,ksize=3)
 	warp_im = getTemp(warp_img)
@@ -55,7 +57,7 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 	P = pprev
 	Ix = cv2.Sobel(img,cv2.CV_64F,1,0,ksize=3)
 	Iy = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=3)
-	thresh = 0.05
+	thresh = 0.01
 	err = 100
 	ppnorm = 10
 	count =0
@@ -95,6 +97,7 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		pnorm = np.linalg.norm(del_p)
 		err = pnorm
 		count +=1
+		# print(count)
 		if count>100:
 			return P
 		#print(pnorm)
@@ -108,13 +111,27 @@ if __name__=="__main__":
 	images = sorted(glob.glob('./Car4/img/*.jpg'))
 	fname = './Car4/img/0001.jpg'
 	img = cv2.imread(fname)
+	# cv2.imshow("raw_img", img)
+	# cv2.waitKey(0)
 	gray_T,box = getTemplate(img)
+	# cv2.imshow("hist eq", gray_T)
+	# cv2.waitKey(0)
+	# gray_T_eq = 
+	# IM = cv2.rectangle(img,(box[1],box[0]),(box[3],box[2]),(255,0,0),3)
+	# cv2.imshow("s", IM)
+	# cv2.waitKey(0)
 	P = np.zeros((6,1))
+	vidWriter = cv2.VideoWriter("video_output.mp4",cv2.VideoWriter_fourcc(*'mp4v'), 24, (360,240))
 	
 	for im in images[1:]:
 		IM = cv2.imread(im)
 		GIM = cv2.cvtColor(IM,cv2.COLOR_BGR2GRAY)
-		Pn = kidharGayaBe(GIM,gray_T,box,P)
+		# cv2.imshow("gray", GIM)
+		# cv2.waitKey(0)
+		HGIM = cv2.equalizeHist(GIM)
+		# cv2.imshow("hist gray", HGIM)
+		# cv2.waitKey(0)
+		Pn = kidharGayaBe(HGIM,gray_T,box,P)
 		P = Pn
 		Pw = np.array([[1+Pn[0][0],Pn[2][0],Pn[4][0]],[Pn[1][0],1+Pn[3][0],Pn[5][0]]])
 		box1 = np.array([box[1],box[0],1]).T.reshape((3,1))
@@ -124,10 +141,11 @@ if __name__=="__main__":
 		wbox4 = np.matmul(Pw,box4)
 		
 		IM = cv2.rectangle(IM,(wbox1[0],wbox1[1]),(wbox4[0],wbox4[1]),(255,0,0),3)
-		cv2.imshow("Image",IM)
-		cv2.waitKey(0)
-		print('Done')
-	
+		vidWriter.write(IM)
+		# cv2.imshow("Image",IM)
+		# cv2.waitKey(1000)
+		# print('Done')
+	vidWriter.release()
 	#img = cv2.rectangle(img, (269,75),(269+34,75+64), (255,0,0), 3)
 	#cv2.imshow('Image',gray_T)
 	#cv2.waitKey(0)
