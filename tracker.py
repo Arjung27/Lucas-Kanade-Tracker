@@ -56,6 +56,7 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 	thresh = 0.05
 	err = 100
 	ppnorm = 10
+	count =0
 	while (err>thresh):
 	#for k in range(100):
 		wimg,wIx,wIy = getWarpy(img,tmp,P,rect,Ix,Iy)
@@ -71,16 +72,28 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 				prod1 = np.matmul(mgrad,jacobian)
 				#perror = tmp[y,x] - wimg[y,x]
 				perror = error[j,i]
+				'''
+				This section contains the Huber Loss Implementation
+				'''
+				t = perror**2
+				if t<=sigma**2:
+					rho=0.5*t
+				else:
+					rho = sigma*np.sqrt(t) - 0.5*sigma**2
+				'''
+				'''
 				prod1 = np.reshape(prod1,(1,6))
 				perror = np.reshape(perror,(1,1))
-				hess = hess + prod1.T*prod1
-				ergrad = ergrad + prod1.T*perror
+				hess = hess + rho*prod1.T*prod1
+				ergrad = ergrad + rho*prod1.T*perror
 
 		del_p = np.matmul(np.linalg.inv(hess),ergrad)
 		P = P + del_p
 		pnorm = np.linalg.norm(del_p)
 		err = pnorm
-		
+		count +=1
+		if count>100:
+			return P
 		print(pnorm)
 
 	return P
