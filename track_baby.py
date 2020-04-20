@@ -139,13 +139,15 @@ def kidharGayaBe(gray,tmp,rect,pprev, p_thresh):
 
 	return P, idx
 
-def movingAverage(length, width, key):
+def movingAverage(length, width, move_length, key):
 
-	weights = np.array([0.2, 0.3, 0.5])
+	sum_move = (move_length+1)*move_length/2
+	weights = [i/sum_move for i in range(1,move_length+1)]
+	print(weights)
 	if key == 'baby':
-		if len(length) >= 3:
-			mean_length = np.sum(weights*length[-3:])
-			mean_width = np.sum(weights*width[-3:])
+		if len(length) >= move_length:
+			mean_length = np.sum(weights*length[-move_length:])
+			mean_width = np.sum(weights*width[-move_length:])
 			length[len(length)-1] = mean_length
 			width[len(width)-1] = mean_width
 
@@ -228,8 +230,8 @@ if __name__=="__main__":
 
 	length = np.abs(box[0][2] - box[0][0])
 	width = np.abs(box[0][3] - box[0][1])
-
-	for i in range(3):
+	move_length = 3
+	for i in range(move_length):
 		length_list = np.append(length_list, length)
 		width_list = np.append(width_list, width)
 	
@@ -268,7 +270,7 @@ if __name__=="__main__":
 		width = np.abs(wbox4[0] - wbox1[0])
 		length_list = np.append(length_list, length)
 		width_list = np.append(width_list, width)
-		movingAverage(length_list, width_list, 'baby')
+		movingAverage(length_list, width_list, move_length, 'baby')
 		newLeftx = int(centerx - length_list[-1]/2)
 		newLefty = int(centery - width_list[-1]/2)
 		newRightx = int(centerx + length_list[-1]/2)
