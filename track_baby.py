@@ -72,7 +72,7 @@ def getWarpy(img,tmp,P,rect,gradx,grady):
 	return warp_img,warp_gradx,warp_grady
 
 
-def kidharGayaBe(gray,tmp,rect,pprev):
+def kidharGayaBe(gray,tmp,rect,pprev, p_thresh):
 	img = deepcopy(gray)
 	img = np.asarray(img, dtype='uint8')
 	gray = np.asarray(gray,dtype='float32')
@@ -124,61 +124,64 @@ def kidharGayaBe(gray,tmp,rect,pprev):
 		if count>500:
 			print("Couldn't converge :( ")	
 			# couldn't converge, so return the P corresponding to least sigma and its id to draw the bounding box
-			idx = sigma.index(min(sigma))
+			idx = None
 			return P, idx 
 		#print(pnorm)
 	# return the P which has converged along with its id to draw the corresponding bounding box
 	idx = err.index(min(err))
-	P[idx] = P_i[idx]
+	if not (np.linalg.norm(P_i) > p_thresh[idx]):
+		P[idx] = P_i[idx]
 	return P, idx
 
 
 if __name__=="__main__":
 	
-	# #### BABY
-	# images = sorted(glob.glob('./DragonBaby/DragonBaby/img/*.jpg'))
-	# fname = []
-
-	# fname.append('./DragonBaby/DragonBaby/img/0001.jpg')  
-	# fname.append('./DragonBaby/DragonBaby/img/0018.jpg')
-	# fname.append('./DragonBaby/DragonBaby/img/0028.jpg')
-	# gray_temp = []
-	# img = []
-	# G = []
-	# box = []
-	# P = []
-	# # cv2.imshow("raw_img", img)
-	# # cv2.waitKey(0)
-	# for i in range(len(fname)):
-	# 	img.append( cv2.imread(fname[i]))
-	# 	G.append(cv2.cvtColor(img[i],cv2.COLOR_BGR2GRAY))
-	# 	gray_temp_t, box_t = getTemplate_baby(img[i], i)
-	# 	gray_temp.append(gray_temp_t)
-	# 	box.append(box_t)
-	# 	P.append(np.zeros((6,1)))
-	# ####
-
-
-	#### BOLT
-	images = sorted(glob.glob('./Bolt2/img/*.jpg'))
+	#### BABY
+	images = sorted(glob.glob('./DragonBaby/DragonBaby/img/*.jpg'))
 	fname = []
 
-	fname.append('./Bolt2/img/0001.jpg')  
+	fname.append('./DragonBaby/DragonBaby/img/0001.jpg')  
+	fname.append('./DragonBaby/DragonBaby/img/0018.jpg')
+	fname.append('./DragonBaby/DragonBaby/img/0028.jpg')
 	gray_temp = []
 	img = []
 	G = []
 	box = []
 	P = []
+	p_thresh = [200]*len(fname)
 	# cv2.imshow("raw_img", img)
 	# cv2.waitKey(0)
 	for i in range(len(fname)):
 		img.append( cv2.imread(fname[i]))
 		G.append(cv2.cvtColor(img[i],cv2.COLOR_BGR2GRAY))
-		gray_temp_t, box_t = getTemplate_bolt(img[i], i)
+		gray_temp_t, box_t = getTemplate_baby(img[i], i)
 		gray_temp.append(gray_temp_t)
 		box.append(box_t)
 		P.append(np.zeros((6,1)))
 	####
+
+
+	# #### BOLT
+	# images = sorted(glob.glob('./Bolt2/img/*.jpg'))
+	# fname = []
+
+	# fname.append('./Bolt2/img/0001.jpg')  
+	# gray_temp = []
+	# img = []
+	# G = []
+	# box = []
+	# P = []
+	# p_thresh = [200]*len(fname)
+	# # cv2.imshow("raw_img", img)
+	# # cv2.waitKey(0)
+	# for i in range(len(fname)):
+	# 	img.append( cv2.imread(fname[i]))
+	# 	G.append(cv2.cvtColor(img[i],cv2.COLOR_BGR2GRAY))
+	# 	gray_temp_t, box_t = getTemplate_bolt(img[i], i)
+	# 	gray_temp.append(gray_temp_t)
+	# 	box.append(box_t)
+	# 	P.append(np.zeros((6,1)))
+	# ####
 
 
 	# #### CAR
@@ -193,6 +196,7 @@ if __name__=="__main__":
 	# P = []
 	# # cv2.imshow("raw_img", img)
 	# # cv2.waitKey(0)
+	# p_thresh = [200]*len(fname)
 	# for i in range(len(fname)):
 	# 	img.append( cv2.imread(fname[i]))
 	# 	G.append(cv2.cvtColor(img[i],cv2.COLOR_BGR2GRAY))
@@ -206,6 +210,8 @@ if __name__=="__main__":
 	
 	vidWriter = cv2.VideoWriter("video_baby.mp4",cv2.VideoWriter_fourcc(*'mp4v'), 24, (640,360))
 	count = 0
+	Pn_prev = np.zeros((6,1))
+	Pn = np.zeros((6,1))
 	for im in images[0:]:
 		# if count < 24:
 		# 	count+=1
@@ -217,9 +223,10 @@ if __name__=="__main__":
 		# HGIM = cv2.equalizeHist(GIM)
 		# cv2.imshow("hist gray", HGIM)
 		# cv2.waitKey(0)
-		P, idx = kidharGayaBe(GIM,G,box,P)
+		P, idx = kidharGayaBe(GIM,G,box,P, p_thresh)
 		print("idx is ", idx)
-		Pn = P[idx]
+		if idx is not None:
+			Pn = P[idx]
 		Pw = np.array([[1+Pn[0][0],Pn[2][0],Pn[4][0]],[Pn[1][0],1+Pn[3][0],Pn[5][0]]])
 		box1 = np.array([box[idx][1],box[idx][0],1]).T.reshape((3,1))
 		box4 = np.array([box[idx][3],box[idx][2],1]).T.reshape((3,1))
