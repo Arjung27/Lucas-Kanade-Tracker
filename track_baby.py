@@ -73,6 +73,7 @@ def getWarpy(img,tmp,P,rect,gradx,grady):
 
 
 def kidharGayaBe(gray,tmp,rect,pprev, p_thresh):
+
 	img = deepcopy(gray)
 	img = np.asarray(img, dtype='uint8')
 	gray = np.asarray(gray,dtype='float32')
@@ -87,14 +88,10 @@ def kidharGayaBe(gray,tmp,rect,pprev, p_thresh):
 	ppnorm = 10
 	count =0
 	
-	while (not min(err) < thresh):
-	#for k in range(100):
+	while (count <= 500):
 		sigma = [0]*len(tmp) 		
 		for k in range(len(tmp)):
 			wimg,wIx,wIy = getWarpy(gray,tmp[k],P_i[k],rect,Ix,Iy)
-			# print(wimg.shape())
-			# cv2.imshow("warped img", wimg)
-			# cv2.waitKey(0)
 			hess = np.zeros((6,6))
 			ergrad = np.zeros((6,1))
 			error = tmp[k]-wimg
@@ -119,19 +116,40 @@ def kidharGayaBe(gray,tmp,rect,pprev, p_thresh):
 			pnorm = np.linalg.norm(del_p)
 			err[k] = pnorm
 		count +=1
-		print(count)
-		# print(count)
-		if count>500:
-			print("Couldn't converge :( ")	
-			# couldn't converge, so return the P corresponding to least sigma and its id to draw the bounding box
-			idx = None
-			return P, idx 
-		#print(pnorm)
+
+		# if count>500:
+		# 	print("Couldn't converge :( ")	
+		# 	# couldn't converge, so return the P corresponding to least sigma and its id to draw the bounding box
+		# 	idx = None
+		# 	return P, idx 
+
 	# return the P which has converged along with its id to draw the corresponding bounding box
-	idx = err.index(min(err))
+	# idx = err.index(min(err))
+	# if not (np.linalg.norm(P_i) > p_thresh[idx]):
+	# 	P[idx] = P_i[idx]
+
+	idx = sigma.index(min(sigma))
+
 	if not (np.linalg.norm(P_i) > p_thresh[idx]):
+		
+		if err[idx] > thresh:
+			return P, None
+
 		P[idx] = P_i[idx]
+
 	return P, idx
+
+def movingAverage(length, width, key):
+
+	weights = np.array([0.2, 0.3, 0.5])
+	if key == 'baby':
+		if len(length) >= 3:
+			mean_length = np.sum(weights*length[-3:])
+			mean_width = np.sum(weights*width[-3:])
+			length[len(length)-1] = mean_length
+			width[len(width)-1] = mean_width
+
+	# return length, width
 
 
 if __name__=="__main__":
@@ -148,6 +166,8 @@ if __name__=="__main__":
 	G = []
 	box = []
 	P = []
+	length_list = np.array([])
+	width_list = np.array([])
 	p_thresh = [200]*len(fname)
 	# cv2.imshow("raw_img", img)
 	# cv2.waitKey(0)
@@ -206,14 +226,20 @@ if __name__=="__main__":
 	# 	P.append(np.zeros((6,1)))
 	# ####
 
+	length = np.abs(box[0][2] - box[0][0])
+	width = np.abs(box[0][3] - box[0][1])
 
+	for i in range(3):
+		length_list = np.append(length_list, length)
+		width_list = np.append(width_list, width)
 	
 	vidWriter = cv2.VideoWriter("video_baby.mp4",cv2.VideoWriter_fourcc(*'mp4v'), 24, (640,360))
 	count = 0
 	Pn_prev = np.zeros((6,1))
 	Pn = np.zeros((6,1))
+	prev_idx = 0
 	for im in images[0:]:
-		# if count < 24:
+		# if count < 72:
 		# 	count+=1
 		# 	continue
 		IM = cv2.imread(im)
@@ -223,24 +249,34 @@ if __name__=="__main__":
 		# HGIM = cv2.equalizeHist(GIM)
 		# cv2.imshow("hist gray", HGIM)
 		# cv2.waitKey(0)
+		P = [np.zeros((6,1))]*3
 		P, idx = kidharGayaBe(GIM,G,box,P, p_thresh)
 		print("idx is ", idx)
 		if idx is not None:
 			Pn = P[idx]
+			prev_idx = idx
 		Pw = np.array([[1+Pn[0][0],Pn[2][0],Pn[4][0]],[Pn[1][0],1+Pn[3][0],Pn[5][0]]])
-		box1 = np.array([box[idx][1],box[idx][0],1]).T.reshape((3,1))
-		box4 = np.array([box[idx][3],box[idx][2],1]).T.reshape((3,1))
+		box1 = np.array([box[prev_idx][1],box[prev_idx][0],1]).T.reshape((3,1))
+		box4 = np.array([box[prev_idx][3],box[prev_idx][2],1]).T.reshape((3,1))
 		wbox1 = np.matmul(Pw,box1)
-		print(count)
+		# print(count)
 		wbox4 = np.matmul(Pw,box4)
 		
-		IM = cv2.rectangle(IM,(wbox1[0],wbox1[1]),(wbox4[0],wbox4[1]),(255,0,0),3)
+		centerx = int((wbox4[1] + wbox1[1])/2)
+		centery = int((wbox4[0] + wbox1[0])/2)
+		length = np.abs(wbox4[1] - wbox1[1])
+		width = np.abs(wbox4[0] - wbox1[0])
+		length_list = np.append(length_list, length)
+		width_list = np.append(width_list, width)
+		movingAverage(length_list, width_list, 'baby')
+		newLeftx = int(centerx - length_list[-1]/2)
+		newLefty = int(centery - width_list[-1]/2)
+		newRightx = int(centerx + length_list[-1]/2)
+		newRighty = int(centery + width_list[-1]/2)
+		print(length_list, width_list)
+
+		IM = cv2.rectangle(IM,(newLefty, newLeftx),(newRighty, newRightx),(255,0,0),3)
 		vidWriter.write(IM)
 		count +=1
-		cv2.imshow("Image",IM)
-		cv2.waitKey(0)
-		# print('Done')
+		cv2.imwrite("./generation/baby_new_/" + str(count) + ".jpg",IM)
 	vidWriter.release()
-#img = cv2.rectangle(img, (269,75),(269+34,75+64), (255,0,0), 3)
-	#cv2.imshow('Image',gray_T)
-	#cv2.waitKey(0)
