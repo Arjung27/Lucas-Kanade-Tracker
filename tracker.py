@@ -110,7 +110,12 @@ if __name__=="__main__":
 	img = cv2.imread(fname)
 	gray_T,box = getTemplate(img)
 	P = np.zeros((6,1))
+<<<<<<< Updated upstream
 	
+=======
+	vidWriter = cv2.VideoWriter("video_output.mp4",cv2.VideoWriter_fourcc(*'mp4v'), 24, (360,240))
+	count = 0
+>>>>>>> Stashed changes
 	for im in images[1:]:
 		IM = cv2.imread(im)
 		GIM = cv2.cvtColor(IM,cv2.COLOR_BGR2GRAY)
@@ -120,14 +125,23 @@ if __name__=="__main__":
 		box1 = np.array([box[1],box[0],1]).T.reshape((3,1))
 		box4 = np.array([box[3],box[2],1]).T.reshape((3,1))
 		wbox1 = np.matmul(Pw,box1)
-		print(wbox1)
+		print(count)
 		wbox4 = np.matmul(Pw,box4)
 		
 		IM = cv2.rectangle(IM,(wbox1[0],wbox1[1]),(wbox4[0],wbox4[1]),(255,0,0),3)
+<<<<<<< Updated upstream
 		cv2.imshow("Image",IM)
 		cv2.waitKey(0)
 		print('Done')
 	
+=======
+		vidWriter.write(IM)
+		count +=1
+		#cv2.imshow("Image",IM)
+		#cv2.waitKey(0)
+		# print('Done')
+	vidWriter.release()
+>>>>>>> Stashed changes
 	#img = cv2.rectangle(img, (269,75),(269+34,75+64), (255,0,0), 3)
 	#cv2.imshow('Image',gray_T)
 	#cv2.waitKey(0)
